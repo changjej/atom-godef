@@ -14,6 +14,12 @@ module.exports = Godef =
         default: 'New'
         enum: ['Right', 'New']
         order: 0
+      goPath:
+        title: 'GOPATH'
+        description: 'You should set your GOPATH in the environment, and launch Atom using the `atom` command line tool; if you would like to set it explicitly, you can do so here (e.g. ~/go)'
+        type: 'string'
+        default: '' # This should usually be set in the environment, not here
+        order: 1
 
 
   subscriptions: null
@@ -46,11 +52,32 @@ module.exports = Godef =
     offset = new Buffer(textEditor.getTextInBufferRange([[0,0], wordEnd])).length
     @godef(textEditor.getPath(), offset, atom.config.get 'godef.show')
 
+  expandPath: (p) ->
+    # Code from github.com/joefitzgerald/go-plus
+    unless p.indexOf('~') is -1
+      home = process.env.HOME
+      p = p.replace(/~/i, home)
+    unless p.toUpperCase().indexOf('$HOME') is -1
+      home = process.env.HOME
+      p = p.replace(/\$HOME/i, home)
+    return p
+
+
   godef: (file, offset, position) ->
-    @gopath = process.env.GOPATH
-    if not @gopath
+    gopathConfig = atom.config.get('go-plus.goPath')
+    result = gopathConfig if gopathConfig? and gopathConfig.trim() isnt ''
+    result = result.replace('\n', '').replace('\r', '')
+    if result != ''
+      @gopath = @expandPath(result)
+    else
+      @gopath = process.env.GOPATH
+
+    unless @gopath?
       console.log "GOPATH not found."
+      @dispatch?.resetAndDisplayMessages(@editor, "GOPATH not found.")
       return
+
+    console.log "GOPATH: " + @gopath
 
     found = false
     if not @godefpath?
@@ -74,7 +101,7 @@ module.exports = Godef =
         '-o'
         offset
     ]
-    
+
     proc.exec args.join(' '), (err, stdout, stderr) =>
       location = stdout.split(':')
       if location.length == 3
