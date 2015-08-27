@@ -77,8 +77,6 @@ module.exports = Godef =
       @dispatch?.resetAndDisplayMessages(@editor, "GOPATH not found.")
       return
 
-    console.log "GOPATH: " + @gopath
-
     found = false
     if not @godefpath?
       for p in @gopath.split(':')
@@ -101,9 +99,11 @@ module.exports = Godef =
         '-o'
         offset
     ]
+    console.log args
 
-    proc.exec args.join(' '), (err, stdout, stderr) =>
+    proc.exec args.join(' '), {env: {GOPATH:@gopath}},  (err, stdout, stderr) =>
       location = stdout.split(':')
+      console.log location
       if location.length == 3
         row = parseInt(location[1])
         column = parseInt(location[2])
